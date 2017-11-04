@@ -1,0 +1,6 @@
+/.vscode/
+/dataset/*/
+/node_modules/
+/.vs/
+
+dataset.json
