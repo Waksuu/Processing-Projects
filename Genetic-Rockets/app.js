@@ -1,6 +1,6 @@
 var POPULATION;
 var LIFESPAN = 100;
-var POPSIZE = 1000;
+var POPSIZE = 100;
 var CURRENT_TICK = 0;
 var LIFE_P;
 var MAX_FITNESS_P;
@@ -9,6 +9,8 @@ var AVG_FITNESS = 0;
 var AVG_FITNESS_P = 0;
 var TARGET;
 var ELITE;
+var GENERATION = 0;
+var GENERATION_P = 0;
 
 function setup() {
     createCanvas(400, 450);
@@ -16,6 +18,7 @@ function setup() {
     LIFE_P = createP()
     MAX_FITNESS_P = createP()
     AVG_FITNESS_P = createP()
+    GENERATION_P = createP()
     TARGET = new createVector(width / 2, height / 4)
 }
 
@@ -23,16 +26,19 @@ function draw() {
     LIFE_P.html("Tick: " + CURRENT_TICK)
     MAX_FITNESS_P.html("Max fitness: " + MAX_FITNESS)
     AVG_FITNESS_P.html("Average fitness: " + AVG_FITNESS)
+    GENERATION_P.html("Generation: " + GENERATION)
 
     POPULATION.update()
 
-    background(51);
-    POPULATION.show()
-    noFill()
-    stroke(255, 0, 0);
-    ellipse(TARGET.x, TARGET.y, 16, 16)
-    fill(100, 100, 100, 120)
-    stroke(255, 255, 255);
+    if (!mouseIsPressed) {
+        background(51);
+        POPULATION.show()
+        noFill()
+        stroke(255, 0, 0);
+        ellipse(TARGET.x, TARGET.y, 16, 16)
+        fill(100, 100, 100, 120)
+        stroke(255, 255, 255);
+    }
 
     CURRENT_TICK++;
 
@@ -40,6 +46,7 @@ function draw() {
         CURRENT_TICK = 0;
         POPULATION.evaluate()
         POPULATION.selection();
+        GENERATION++;
     }
 }
 
@@ -166,7 +173,7 @@ class DNA {
 
 class Rocket {
     constructor(dna) {
-        this.pos = createVector(width / 2, height-4);
+        this.pos = createVector(width / 2, height - 4);
         this.vel = createVector();
         this.acc = createVector();
         this.dna = (dna) ? dna : new DNA();
@@ -182,7 +189,7 @@ class Rocket {
         var distanceToTarget = dist(this.pos.x, this.pos.y, TARGET.x, TARGET.y);
         this.fitness = floor((1 / (1 + distanceToTarget)) * 100)
         if (this.crashed || this.crashedAtBarrier) {
-            this.fitness /= 10;
+            this.fitness = 10;
         } else {
             this.fitness *= 10;
         }
