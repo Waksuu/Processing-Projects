@@ -1,6 +1,6 @@
 var POPULATION;
-var LIFESPAN = 300;
-var POPSIZE = 800;
+var LIFESPAN = 100;
+var POPSIZE = 400;
 var CURRENT_TICK = 0;
 var LIFE_P;
 var MAX_FITNESS_P;
@@ -24,8 +24,16 @@ function draw() {
     MAX_FITNESS_P.html(MAX_FITNESS)
     AVG_FITNESS_P.html(AVG_FITNESS)
 
+    POPULATION.update()
+
     background(51);
-    POPULATION.run()
+    POPULATION.show()
+    noFill()
+    stroke(255, 0, 0);
+    ellipse(TARGET.x, TARGET.y, 16, 16)
+    fill(100, 100, 100, 120)
+    stroke(255, 255, 255);
+
     CURRENT_TICK++;
 
     if (CURRENT_TICK > LIFESPAN) {
@@ -33,13 +41,6 @@ function draw() {
         POPULATION.evaluate()
         POPULATION.selection();
     }
-
-    noFill()
-    stroke(255, 0, 0);
-    ellipse(TARGET.x, TARGET.y, 16, 16)
-    fill(100, 100, 100, 120)
-    stroke(255, 255, 255);
-    //rect(width / 3, height / 1.7, width / 6, height / 40)
 }
 
 function mousePressed() {
@@ -47,84 +48,102 @@ function mousePressed() {
     console.log(dist(TARGET.x, TARGET.y, mouseX, mouseY))
 }
 
-function Population() {
-    this.rockets = []
-    this.matingpool = []
+class Population {
+    matingpool = [];
+    rockets = [];
 
-    for (var i = 0; i < POPSIZE; i++) {
-        this.rockets[i] = new Rocket()
+    constructor() {
+        for (var i = 0; i < POPSIZE; i++) {
+            this.rockets[i] = new Rocket();
+        }
     }
 
-    this.run = function () {
+    update() {
         for (var i = 0; i < POPSIZE; i++) {
             this.rockets[i].update();
+        }
+    };
+
+    show() {
+        for (var i = 0; i < POPSIZE; i++) {
             this.rockets[i].show();
         }
+    };
 
-    }
+    evaluate() {
+        for (var currentRocket = 0; currentRocket < POPSIZE; currentRocket++) {
+            this.rockets[currentRocket].calculateFitness();
 
-    this.evaluate = function () {
+            // Reduce elite rocket
+            if (this.rockets[currentRocket].fitness > MAX_FITNESS) {
+                MAX_FITNESS = this.rockets[currentRocket].fitness;
+                ELITE = this.rockets[currentRocket];
+            }
+
+            AVG_FITNESS += this.rockets[currentRocket].fitness;
+        }
+
+        AVG_FITNESS /= POPSIZE;
+
+        // Normalize fitness
+        for (var currentRocket = 0; currentRocket < POPSIZE; currentRocket++) {
+            this.rockets[currentRocket].fitness /= MAX_FITNESS;
+        }
+
         this.matingpool = [];
-
-        for (var i = 0; i < POPSIZE; i++) {
-            this.rockets[i].calcFitness()
-
-            if (this.rockets[i].fitness > MAX_FITNESS) {
-                MAX_FITNESS = this.rockets[i].fitness
-				ELITE = this.rockets[i]
-            }
-            AVG_FITNESS += this.rockets[i].fitness
-        }
-        AVG_FITNESS /= POPSIZE
-
-        for (var i = 0; i < POPSIZE; i++) {
-            this.rockets[i].fitness /= MAX_FITNESS
-        }
-
-        for (var i = 0; i < POPSIZE; i++) {
-            var n = floor(this.rockets[i]*100);
-            for (var j = 0; j < n; j++) {
-                this.matingpool.push(this.rockets[i])
+        for (var currentRocket = 0; currentRocket < POPSIZE; currentRocket++) {
+            var thisRocketFitness = floor(this.rockets[currentRocket].fitness * 100);
+            // Add as many rockets to mating pool as their normalized fitness score
+            for (var j = 0; j < thisRocketFitness; j++) {
+                this.matingpool.push(this.rockets[currentRocket]);
             }
         }
-        
-        if(this.matingpool.length===0) {
-            debugger;
-        }
-    }
 
-    this.selection = function () {
-        var newRockets = []
-        if(this.matingpool.length===0) {
-            console.log("Dupa error. Rebooting population")
-            POPULATION = new Population();
-            return
-        }
+        this.validateMatingPool()
+    };
+
+    selection() {
+        this.validateMatingPool()
+
+        var newRockets = [];
+
         for (var i = 0; i < POPSIZE; i++) {
-            var parentA = random(this.matingpool).dna
-            var parentB = random(this.matingpool).dna
-
-            var childDna = parentA.crossover(parentB)
+            var parentA = random(this.matingpool).dna;
+            var parentB = random(this.matingpool).dna;
+            var childDna = parentA.crossover(parentB);
             newRockets[i] = new Rocket(childDna);
         }
-		this.newRockets[0] = ELITE
-        this.rockets = newRockets
+
+        newRockets[0] = ELITE;
+        newRockets[0].elite = true;
+        this.rockets = newRockets;
+    };
+
+    validateMatingPool() {
+        if (this.matingpool.length === 0) {
+            console.error("Rebooting population!");
+            POPULATION = new Population();
+            return;
+        }
     }
 }
 
-function DNA(genes) {
-    if (genes) {
-        this.genes = genes
-    } else {
-        this.genes = []
-        for (var i = 0; i < LIFESPAN; i++) {
-            this.genes[i] = p5.Vector.random2D()
-            this.genes[i].setMag(0.5);
+class DNA {
+    constructor(genes) {
+        if (genes) {
+            this.genes = genes;
+        }
+        else {
+            this.genes = [];
+            for (var i = 0; i < LIFESPAN; i++) {
+                this.genes[i] = p5.Vector.random2D();
+                this.genes[i].setMag(0.5);
+            }
         }
     }
-    this.crossover = function (partnerDna) {
-        var newgenes = [];
 
+    crossover(partnerDna) {
+        var newgenes = [];
         var mid = floor(random(partnerDna.genes.length));
         //for (var i = 0; i < LIFESPAN; i++) {
         //    var gene = createVector()
@@ -133,126 +152,105 @@ function DNA(genes) {
         //    gene.z = (this.genes[i].z + partnerDna.z)/2
         //    newgenes[i] = gene
         //}
-        
         var mid = floor(random(partnerDna.genes.length));
         for (var i = 0; i < LIFESPAN; i++) {
-            newgenes[i] = (i > mid) ? this.genes[i] : partnerDna[i]
+            newgenes[i] = (i > mid) ? this.genes[i] : partnerDna[i];
         }
-        newgenes = this.mutate(newgenes)
-        return new DNA(newgenes)
-    }
+        newgenes = this.mutate(newgenes);
+        return new DNA(newgenes);
+    };
 
-    this.mutate = function (oldGenes) {
-        var newgenes = []
+    mutate(oldGenes) {
+        var newgenes = [];
         for (var i = 0; i < oldGenes.length; i++) {
             if (random(1) < 0.005) {
                 newgenes[i] = p5.Vector.random2D();
-            } else {
-                newgenes[i] = oldGenes[i]
+            }
+            else {
+                newgenes[i] = oldGenes[i];
             }
         }
-        return newgenes
-    }
+        return newgenes;
+    };
 }
 
-function Rocket(dna) {
-    this.pos = createVector(width / 2, height)
-    this.vel = createVector()
-    this.acc = createVector()
-    this.dna = (dna) ? dna : new DNA();
-    this.fitness = 0;
 
-    this.arrivedAt = LIFESPAN
-    this.crashed = false
-    this.arrivedAtTarget = false
-    this.crashedAtBarrier = false
+class Rocket {
+    constructor(dna) {
+        this.pos = createVector(width / 2, height);
+        this.vel = createVector();
+        this.acc = createVector();
+        this.dna = (dna) ? dna : new DNA();
+        this.fitness = 0;
+        this.arrivedAt = LIFESPAN;
+        this.crashed = false;
+        this.arrivedAtTarget = false;
+        this.crashedAtBarrier = false;
+        this.elite = false;
+    }
 
-    this.calcFitness = function () {
-        //var ta = 1 - sqrt((this.arrivedAt / (LIFESPAN + 1)^2))
-        //var t = 1 / (1 + ta)
-        //if (!this.arrivedAtTarget) {
-        //    t /= 10;
-        //}
-
-        var d = dist(this.pos.x, this.pos.y, TARGET.x, TARGET.y)
-        var c = 1 / (1 + d)
-
-        //this.fitness = (t + c) / 2
-        this.fitness = c
-
+    calculateFitness() {
+        var distanceToTarget = dist(this.pos.x, this.pos.y, TARGET.x, TARGET.y);
+        var normalizedDistanceToTarget = 1 / (1 + distanceToTarget);
+        this.fitness = normalizedDistanceToTarget
         if (this.crashed) {
-            this.fitness /= 5
+            this.fitness /= 5;
         }
         if (this.arrivedAtTarget) {
-            this.fitness *= 200
+            this.fitness *= 200;
         }
-		
-        if(this.crashedAtBarrier){
-            this.fitness /= 20
+        if (this.crashedAtBarrier) {
+            this.fitness /= 20;
         }
+        return this.fitness;
+    };
 
-        return this.fitness
-    }
+    applyForce(force) {
+        this.acc.add(force);
+    };
 
-    this.applyForce = function (force) {
-        this.acc.add(force)
-    }
-
-    this.update = function () {
+    update() {
         if (this.crashed === true || this.arrivedAtTarget === true) {
             return;
         }
-
-        this.applyForce(this.dna.genes[CURRENT_TICK])
-
-        this.vel.add(this.acc)
-        this.pos.add(this.vel)
-        this.acc.mult(0)
-
-        var d = dist(this.pos.x, this.pos.y, TARGET.x, TARGET.y)
+        this.applyForce(this.dna.genes[CURRENT_TICK]);
+        this.vel.add(this.acc);
+        this.pos.add(this.vel);
+        this.acc.mult(0);
+        var d = dist(this.pos.x, this.pos.y, TARGET.x, TARGET.y);
         if (d < 6 && !this.arrivedAtTarget) {
-            this.arrivedAtTarget = true
-            this.arrivedAt = CURRENT_TICK
-            this.pos.x = TARGET.x
-            this.pos.y = TARGET.y
+            this.arrivedAtTarget = true;
+            this.arrivedAt = CURRENT_TICK;
+            this.pos.x = TARGET.x;
+            this.pos.y = TARGET.y;
         }
-
         if (this.pos.x < 0 || this.pos.x > width) {
-            this.crashed = true
+            this.crashed = true;
             return;
         }
         if (this.pos.y < 0) {
-            this.crashed = true
+            this.crashed = true;
             return;
         }
-
         if (this.pos.y > height) {
-            this.crashedAtBarrier = true
-            this.crashed = true
+            this.crashedAtBarrier = true;
+            this.crashed = true;
             return;
         }
+    };
 
-       ////rect(width/3, height/1.7,width/3, height/40)
-       //if (this.pos.x > width/3 && this.pos.x < (width/3)+(width/6) && this.pos.y > height/1.7 && this.pos.y < (height/1.7)+height/40) {
-       //    this.crashed = true
-       //    this.crashedAtBarrier = true
-       //    return;
-       //}
-    }
-
-    this.show = function () {
+    show() {
         push();
-
-        translate(this.pos.x, this.pos.y)
-        rotate(this.vel.heading())
-
-        noStroke()
-        fill(255, 255, 255, 100)
-
-        rectMode(CENTER)
+        translate(this.pos.x, this.pos.y);
+        rotate(this.vel.heading());
+        noStroke();
+        if (this.elite === true) {
+            fill(255, 0, 0, 100);
+        } else {
+            fill(255, 255, 255, 100);
+        }
+        rectMode(CENTER);
         rect(0, 0, 20, 5);
-
         pop();
-    }
-
+    };
 }
