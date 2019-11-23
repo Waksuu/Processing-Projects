@@ -1,6 +1,6 @@
 var POPULATION;
 var LIFESPAN = 100;
-var POPSIZE = 400;
+var POPSIZE = 1000;
 var CURRENT_TICK = 0;
 var LIFE_P;
 var MAX_FITNESS_P;
@@ -20,9 +20,9 @@ function setup() {
 }
 
 function draw() {
-    LIFE_P.html(CURRENT_TICK)
-    MAX_FITNESS_P.html(MAX_FITNESS)
-    AVG_FITNESS_P.html(AVG_FITNESS)
+    LIFE_P.html("Tick: " + CURRENT_TICK)
+    MAX_FITNESS_P.html("Max fitness: " + MAX_FITNESS)
+    AVG_FITNESS_P.html("Average fitness: " + AVG_FITNESS)
 
     POPULATION.update()
 
@@ -108,14 +108,16 @@ class Population {
         var newRockets = [];
 
         for (var i = 0; i < POPSIZE; i++) {
-            var parentA = random(this.matingpool).dna;
-            var parentB = random(this.matingpool).dna;
+            var parentA = random(this.matingpool);
+            var parentB = random(this.matingpool);
             var childDna = parentA.crossover(parentB);
             newRockets[i] = new Rocket(childDna);
         }
 
-        newRockets[0] = ELITE;
+        newRockets[0] = new Rocket(ELITE.dna);
         newRockets[0].elite = true;
+
+        newRockets[1] = new Rocket();
         this.rockets = newRockets;
     };
 
@@ -142,19 +144,11 @@ class DNA {
         }
     }
 
-    crossover(partnerDna) {
+    crossover(firstParent, secondParent) {
         var newgenes = [];
-        var mid = floor(random(partnerDna.genes.length));
-        //for (var i = 0; i < LIFESPAN; i++) {
-        //    var gene = createVector()
-        //    gene.x = (this.genes[i].x + partnerDna.x)/2
-        //    gene.y = (this.genes[i].y + partnerDna.y)/2
-        //    gene.z = (this.genes[i].z + partnerDna.z)/2
-        //    newgenes[i] = gene
-        //}
-        var mid = floor(random(partnerDna.genes.length));
+        var mid = floor(random(this.genes.length));
         for (var i = 0; i < LIFESPAN; i++) {
-            newgenes[i] = (i > mid) ? this.genes[i] : partnerDna[i];
+            newgenes[i] = (i > mid) ? firstParent.dna.genes[i] : secondParent.dna.genes[i];
         }
         newgenes = this.mutate(newgenes);
         return new DNA(newgenes);
@@ -163,12 +157,7 @@ class DNA {
     mutate(oldGenes) {
         var newgenes = [];
         for (var i = 0; i < oldGenes.length; i++) {
-            if (random(1) < 0.005) {
-                newgenes[i] = p5.Vector.random2D();
-            }
-            else {
-                newgenes[i] = oldGenes[i];
-            }
+            newgenes[i] = (random(1) < 0.01) ? p5.Vector.random2D() : oldGenes[i];
         }
         return newgenes;
     };
@@ -177,7 +166,7 @@ class DNA {
 
 class Rocket {
     constructor(dna) {
-        this.pos = createVector(width / 2, height);
+        this.pos = createVector(width / 2, height-4);
         this.vel = createVector();
         this.acc = createVector();
         this.dna = (dna) ? dna : new DNA();
@@ -191,16 +180,15 @@ class Rocket {
 
     calculateFitness() {
         var distanceToTarget = dist(this.pos.x, this.pos.y, TARGET.x, TARGET.y);
-        var normalizedDistanceToTarget = 1 / (1 + distanceToTarget);
-        this.fitness = normalizedDistanceToTarget
-        if (this.crashed) {
-            this.fitness /= 5;
+        this.fitness = floor((1 / (1 + distanceToTarget)) * 100)
+        if (this.crashed || this.crashedAtBarrier) {
+            this.fitness /= 10;
+        } else {
+            this.fitness *= 10;
         }
         if (this.arrivedAtTarget) {
-            this.fitness *= 200;
-        }
-        if (this.crashedAtBarrier) {
-            this.fitness /= 20;
+            this.fitness *= 10;
+            this.fitness *= (LIFESPAN / this.arrivedAt) * LIFESPAN
         }
         return this.fitness;
     };
@@ -238,6 +226,10 @@ class Rocket {
             return;
         }
     };
+
+    crossover(partner) {
+        return this.dna.crossover(this, partner)
+    }
 
     show() {
         push();
