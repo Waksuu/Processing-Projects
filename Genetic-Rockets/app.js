@@ -42,7 +42,7 @@ function draw() {
 
     CURRENT_TICK++;
 
-    if (CURRENT_TICK > LIFESPAN) {
+    if (POPULATION.allRocetsAreFinished()) {
         CURRENT_TICK = 0;
         POPULATION.evaluate()
         POPULATION.selection();
@@ -134,6 +134,15 @@ class Population {
             POPULATION = new Population();
             return;
         }
+    }
+
+    allRocetsAreFinished() {
+        for (var i = 0; i < this.rockets.length; i++) {
+            if (!this.rockets[i].isFinished()) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
@@ -234,6 +243,10 @@ class Rocket {
         }
     };
 
+    isFinished() {
+        return this.crashedAtBarrier || this.arrivedAtTarget || this.crashed;
+    }
+    
     crossover(partner) {
         return this.dna.crossover(this, partner)
     }
