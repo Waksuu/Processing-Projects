@@ -42,7 +42,7 @@ function draw() {
 
     CURRENT_TICK++;
 
-    if (POPULATION.allRocetsAreFinished()) {
+    if (POPULATION.allRocetsAreFinished() || CURRENT_TICK > LIFESPAN) {
         CURRENT_TICK = 0;
         POPULATION.evaluate()
         POPULATION.selection();
@@ -173,7 +173,7 @@ class DNA {
     mutate(oldGenes) {
         var newgenes = [];
         for (var i = 0; i < oldGenes.length; i++) {
-            newgenes[i] = (random(1) < 0.01) ? p5.Vector.random2D() : oldGenes[i];
+            newgenes[i] = (random(1) < 0.10) ? p5.Vector.random2D() : oldGenes[i];
         }
         return newgenes;
     };
@@ -204,7 +204,7 @@ class Rocket {
         }
         if (this.arrivedAtTarget) {
             this.fitness *= 10;
-            this.fitness *= (LIFESPAN / this.arrivedAt) * LIFESPAN
+            this.fitness *= this.arrivedAt;
         }
         return this.fitness;
     };
